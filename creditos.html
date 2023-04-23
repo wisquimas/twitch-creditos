@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<html>
+<head>
+    <style>
+@import url(https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300);
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: rgba(0, 0, 0, 0);
+  overflow: hidden;
+}
+
+.wrapper {
+  position: absolute;
+  top: 100%;
+  width: 100%;
+  font: 300 30px/1 'Open Sans Condensed', sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+  color: lightblue;
+}
+
+.movie {
+  margin-bottom: 25px;
+  font-size: 50px;
+}
+
+.job {
+	margin-top: 60px;
+    margin-bottom: 15px;
+    font-size: 50px;
+    font-weight: bold;
+    color: white;
+clear:both;
+padding-top:20px;
+}
+
+.name {
+  margin-bottom: 20px;
+  font-size: 40px;
+}
+.title {
+    color: white;
+    font-size: 80px;
+    font-weight: bold;
+    clear:both;
+}
+.sub_title {
+    #color: white;
+    font-size: 50px;
+    #font-weight: bold;
+}
+body{
+	background-color:black;
+}
+.name~.name {
+    display: block;
+    /* float: left; */
+    width: 50%;
+    float: left;
+}
+
+
+    </style>
+    <script language="javascript" type="text/javascript">
+
+function getParameterCaseInsensitive(object, key) {
+  return object[Object.keys(object)
+    .find(k => k.toLowerCase() === key.toLowerCase())
+  ];
+}
+
+// Create WebSocket connection.
+const socket = new WebSocket('ws://localhost:8080');
+
+// get messages from the CPH socket
+socket.onmessage = function (event) {
+	const msg = JSON.parse(event.data);
+	console.log('Message from server: ', msg);
+
+	if (msg.id === 'credits') {
+		// close the socket
+		socket.close();
+
+		const headers = [
+			{ section: "events", key: "follows", title: "Nuevas/es/os Seguidores!" },
+			{ section: "events", key: "cheers", title: "Cheers!" },
+			{ section: "events", key: "subs", title: "Nuevos/as/es Subscriptores!" },
+			{ section: "events", key: "reSubs", title: "Se Resuscribieron!" },
+			{ section: "events", key: "giftSubs", title: "Gente loca que da regalos de subscripciones!" },
+			{ section: "events", key: "giftBombs", title: "Gente más loca que dejó caer bombas de regalos!" },
+			{ section: "events", key: "raided", title: "Gracias por los raideos!" },
+			{ section: "events", key: "rewardRedemptions", title: "Decidieron gastar puntos del canal" },
+			{ section: "events", key: "goalContributions", title: "Contribuyeron a la meta!" },
+			{ section: "events", key: "pyramids", title: "Se pusieron a hacer pirámides!" },
+			{ section: "users", key: "editors", title: "Editores" },
+			{ section: "users", key: "moderators", title: "Moderadores", filterExistingEntries: true },
+			{ section: "users", key: "subscribers", title: "Subscriptores/as" },
+			{ section: "users", key: "vips", title: "VIPs!", filterExistingEntries: true },
+			{ section: "groups", key: "<group name>", title: "<group title>" },
+			{ section: "users", key: "users", title: "Viewers", filterExistingEntries: true },
+			{ section: "hypeTrain", key: "conductors", title: "Chabones/as re loco Conductores del Tren del Hype" },
+			{ section: "hypeTrain", key: "contributors", title: "Se subieron al Tren del Hype!" },
+			{ section: "top", key: "allBits", title: "TOP donadores de bits del canal!" },
+			{ section: "top", key: "monthBits", title: "Gente copada que donó bits éste mes" },
+			{ section: "top", key: "weekBits", title: "Gente que donó bits ésta semana!" },
+			{ section: "top", key: "channelRewards", title: "Amigos/as/ues que han gastado más puntos de canal!" }
+		];
+
+		// Generate DOM
+		const container = document.getElementById('credits');
+		const existingUserMap = {};
+		const elements = [
+			`<div class="title">¡El STREAM de hoy llegó a su fin!</div>`,
+			`<div class="sub_title">¡Gracias a todos los participantes del stream!</div>`,
+		];
+		for (const header of headers) {
+			const headerSection = getParameterCaseInsensitive(msg, header.section);
+			if (headerSection) {
+				let eventData = getParameterCaseInsensitive(headerSection, header.key);
+				if (!eventData) continue;
+
+				// filter existing entries in the current section
+				if (header.filterExistingEntries) eventData = eventData.filter(e => !existingUserMap[header.section] || !existingUserMap[header.section].includes(e));
+				if (eventData.length > 0) {
+					elements.push(`
+						<div class="job">${ header.title }</div>
+						${Object.values(eventData).map((entry) => {
+							if([
+								"Nightbot",
+								"StreamElements",
+								"OWN3D",
+								"Wisquimas",
+								"SoundAlerts"
+							].indexOf(entry)>=0){
+								return '';
+							}
+							return `<div class="name">${ entry }</div>`;
+						}).join('')}
+					`);
+
+					// save output users by section
+					if (!existingUserMap[header.section]) existingUserMap[header.section] = [];
+					existingUserMap[header.section].push(...eventData);
+				}
+			}
+		}
+		container.innerHTML = elements.join('');
+
+		// Init animation
+		const creditsHeight = Math.ceil((container.offsetHeight / window.innerHeight) * -100) - 10;
+		const duration = ((container.offsetHeight / window.innerHeight * 100) + 350) * 60;
+		const creditsAnimation = container.animate([
+				{ top: '110%' },
+				{ top: creditsHeight + '%' }
+			],{
+				duration: duration,
+				iterations: Infinity
+			}
+		);
+	}
+}
+
+// set "request" to 'GetCredits', or 'TestCredits' for testing
+socket.onopen = function (event) {
+	const msg = {
+		id: 'credits',
+		request: 'GetCredits'
+	};
+	socket.send(JSON.stringify(msg));
+};
+
+    </script>
+</head>
+<body>
+<div id="credits" class="wrapper"></div>
+</body>
+</html>
